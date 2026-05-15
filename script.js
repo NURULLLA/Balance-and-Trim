@@ -167,13 +167,35 @@ function initChart() {
                     borderDash: [2, 2],
                     pointRadius: 0
                 },
-                // User Points Placeholders
+                // User Points — one dataset per weight type
                 {
-                    label: 'User Points',
+                    label: 'ZFW',
                     data: [],
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    backgroundColor: [], // Dynamic colors
+                    pointRadius: 7,
+                    pointHoverRadius: 9,
+                    backgroundColor: '#3B82F6',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointStyle: 'circle'
+                },
+                {
+                    label: 'TOW',
+                    data: [],
+                    pointRadius: 7,
+                    pointHoverRadius: 9,
+                    backgroundColor: '#F97316',
+                    borderColor: '#F97316',
+                    borderWidth: 2,
+                    pointStyle: 'circle'
+                },
+                {
+                    label: 'LW',
+                    data: [],
+                    pointRadius: 7,
+                    pointHoverRadius: 9,
+                    backgroundColor: '#10B981',
+                    borderColor: '#10B981',
+                    borderWidth: 2,
                     pointStyle: 'circle'
                 }
             ]
@@ -218,64 +240,43 @@ function calculate() {
         { name: 'LW', w: w_lw, i: i_lw, poly: LW_POLY, lim: MLW }
     ];
 
-    let resultsHtml = '';
-    let chartPoints = [];
-    let pointColors = [];
+    // Base colors for each point type (shown when OK)
+    const BASE_COLORS = { ZFW: '#3B82F6', TOW: '#F97316', LW: '#10B981' };
+    const FAIL_COLOR = '#EF4444';
 
-    inputs.forEach(item => {
+    let resultsHtml = '';
+
+    inputs.forEach((item, idx) => {
         let mac = calc.calculate_mac(item.w, item.i);
         let valid = calc.check_validity(item.w, item.i, item.poly, item.lim);
         let statusClass = valid.ok ? 'status-ok' : 'status-fail';
-
-        let stabHtml = '';
-        if (item.name === 'TOW' && valid.ok) {
-            let stab = calc.calculate_stab(item.w, mac);
-            // Show stab prominently
-            document.getElementById('results-card').insertAdjacentHTML('beforeend',
-                `<div class="stab-box">TOW STAB TRIM: ${stab.toFixed(2)}</div>`
-            );
-        } else if (item.name === 'TOW') {
-            // If TOW invalid, remove any old stab box? 
-            // Logic below handles clean html regen
-        }
+        let color = valid.ok ? BASE_COLORS[item.name] : FAIL_COLOR;
 
         resultsHtml += `
             <div class="result-item">
-                <span class="res-type">${item.name}</span>
+                <span class="res-type" style="color:${color}">${item.name}</span>
                 <span class="res-val">${mac.toFixed(1)}% MAC</span>
                 <span class="res-status ${statusClass}">${valid.ok ? 'OK' : 'FAIL'}</span>
             </div>
         `;
 
-        // Add to chart
-        chartPoints.push({ x: item.i, y: item.w });
-        pointColors.push(valid.ok ? 'green' : 'red');
+        // Update corresponding dataset (3=ZFW, 4=TOW, 5=LW)
+        myChart.data.datasets[3 + idx].data = [{ x: item.i, y: item.w }];
+        myChart.data.datasets[3 + idx].backgroundColor = color;
+        myChart.data.datasets[3 + idx].borderColor = color;
     });
 
-    // Inject Results
-    const resContainer = document.getElementById('results-content');
-    resContainer.innerHTML = resultsHtml;
-
-    // Add logic to clear previous stab box if exists inside container, 
-    // actually we should just build string fully then inject.
-    // Let's refix the Stab display log logic.
-
-    // RE-RUN Logic for STAB display (cleaner)
-    let finalHtml = resultsHtml;
+    // STAB display
     let mac_tow = calc.calculate_mac(w_tow, i_tow);
     let valid_tow = calc.check_validity(w_tow, i_tow, TOW_POLY, MTOW);
     if (valid_tow.ok) {
         let stab = calc.calculate_stab(w_tow, mac_tow);
-        finalHtml += `<div class="stab-box">STAB TRIM: ${stab.toFixed(2)}</div>`;
+        resultsHtml += `<div class="stab-box">STAB TRIM: ${stab.toFixed(2)}</div>`;
     }
 
-    resContainer.innerHTML = finalHtml;
+    document.getElementById('results-content').innerHTML = resultsHtml;
     document.getElementById('results-card').classList.remove('hidden');
 
-    // Update Chart
-    myChart.data.datasets[3].data = chartPoints;
-    myChart.data.datasets[3].backgroundColor = pointColors;
-    myChart.data.datasets[3].borderColor = pointColors; // border same as bg for solid dot
     myChart.update();
 }
 
